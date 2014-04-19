@@ -1,0 +1,11 @@
+1 1.0.0
+1 0.0.1
+1 0.0.1-alpha
+1 1.2.3+build-7268
+1 4.5.6-beta+build-9761.qa
+1 3456778.0.111111111
+1 6789.0.0+build.9261
+0 1.0.0shouldntbeabletodothis-alpha
+0 abc.def.ghi
+0 12.x.6
+0 1.2.3.4

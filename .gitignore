@@ -1,3 +1,6 @@
+# test build output directory
+/tests/build/*
+
 # Object files
 *.o
 *.ko
