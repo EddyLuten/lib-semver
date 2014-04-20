@@ -1,4 +1,4 @@
-# test build output directory
+# Test build output directory
 /tests/build/*
 
 # Object files

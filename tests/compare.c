@@ -38,6 +38,9 @@ int main(int argc, const char* argv[])
   printf("TEST compare: %s %c %s\n", argv[1], comparator, argv[3]);
   compare_result = semver_compare(v1, v2);
 
+  semver_destroy(v1);
+  semver_destroy(v2);
+
   switch (comparator)
   {
     case '<':

@@ -1,10 +1,28 @@
 #!/bin/bash
 set -e
 
+valgrind_run() {
+	valgrind --leak-check=full --show-leak-kinds=definite --error-exitcode=1 --dsymutil=yes -q $@
+}
+
 setup() {
+	set +e
+	scan-build -h > /dev/null
+	if [ $? -ne 0 ] ; then
+		echo "Clang static analyzer not installed."
+		exit $?
+	fi
+
+	valgrind --version > /dev/null
+	if [ $? -ne 0 ] ; then
+		echo "Valgrind not installed."
+		echo $?
+	fi
+
+	set -e
 	make clean > /dev/null
 	echo "BUILDING TESTS"
-	make all
+	scan-build -v make all
 }
 
 cleanup() {
@@ -18,14 +36,14 @@ cleanup() {
 
 run() {
 	echo "RUNNING TESTS"
-	./build/custom-allocators
+	valgrind_run ./build/custom-allocators
 
 	# test simple parsing of version strings
 	# format of string "n version\n"
 	# n: 0 or 1, indicates if the test should fail or pass
 	while read version
 	do
-		./build/simple-parse $version
+		valgrind_run ./build/simple-parse $version
 	done < ./versions.txt
 
 	# test the comparision functionality
@@ -33,7 +51,7 @@ run() {
 	# op: <, >, or = operator used in the test
 	while read comparison
 	do
-		./build/compare $comparison
+		valgrind_run ./build/compare $comparison
 	done < ./compare.txt
 }
 

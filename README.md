@@ -10,7 +10,7 @@ Must be compiled using a compiler that supports the C99 standard.
 
 ## Installation ##
 
-Simply include the `source/semver.c` file into your project and make the
+Simply add the `source/semver.c` file to your project and make the
 `include/semver.h` file available in your include path.
 
 ## API ##

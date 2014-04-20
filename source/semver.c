@@ -9,9 +9,9 @@
 #include <semver.h>
 
 // Custom allocators, default to the defaults.
-static void* (*semver_malloc)(size_t) = malloc;
-static void* (*semver_realloc)(void*, size_t) = realloc;
-static void  (*semver_free)(void*) = free;
+static semver_malloc_fnc semver_malloc = (semver_malloc_fnc)malloc;
+static semver_realloc_fnc semver_realloc = (semver_realloc_fnc)realloc;
+static semver_free_fnc semver_free = (semver_free_fnc)free;
 static FILE* semver_out = NULL;
 
 //INTERNAL
@@ -51,7 +51,7 @@ uint64_t pre_release_set(const char* begin, const char* end, char*** result)
     return 0;
 
   // Create a copy of the whole string
-  copy_length = strchr(begin, NULL == end ? '\0' : *end) - begin;
+  copy_length = (size_t)(strchr(begin, NULL == end ? '\0' : *end) - begin);
   input_copy = semver_malloc((copy_length + 1) * sizeof(char));
 
   if (NULL == input_copy)
@@ -102,12 +102,19 @@ uint64_t pre_release_set(const char* begin, const char* end, char*** result)
 // pre_release - pointer to an array of pointers to be freed.
 // element_count - the amount of elements in pre_release.
 void pre_release_unset(char*** pre_release, const size_t element_count)
-{
-  size_t i = 0;
-  while (i < element_count)
-    semver_free((*pre_release)[i++]);
+{ 
+  size_t i;
+
+  if (NULL == pre_release)
+    return;
+
+  for (i = 0; i < element_count; ++i)
+  {
+    if (NULL != (*pre_release)[i])
+      semver_free((*pre_release)[i]);
+  }
+
   semver_free(*pre_release);
-  *pre_release = NULL;
 }
 
 // INTERNAL
@@ -158,9 +165,9 @@ bool build_info_validate(struct SemVer* version)
  * Allows the usage of custom memory allocators. If not provided, the library
  * will use the default malloc(), realloc(), and free() implementations.
  */
-void semver_config(void* (*custom_malloc)(size_t),
-                   void* (*custom_realloc)(void*, size_t) ,
-                   void (*custom_free)(void*),
+void semver_config(semver_malloc_fnc custom_malloc,
+                   semver_realloc_fnc custom_realloc,
+                   semver_free_fnc custom_free,
                    FILE* debug_out)
 {
   semver_malloc = NULL == custom_malloc ? semver_malloc : custom_malloc;
@@ -175,7 +182,7 @@ struct SemVer* semver_parse(const char* string)
   size_t build_info_length;
   char* pre_release_pos;
   char* build_info_pos;
-  char last_char;
+  char last_char = 0;
 
   if (NULL == string)
   {

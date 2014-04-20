@@ -5,7 +5,7 @@
 #include <stdint.h> // for uint64_t support
 #include <stdio.h> // for FILE struct
 
-#define LIB_SEMVER_VERSION "0.0.1-alpha"
+#define LIB_SEMVER_VERSION "0.0.2-alpha"
 
 struct SemVer
 {
@@ -17,9 +17,13 @@ struct SemVer
   char* build_info;
 };
 
-void semver_config(void* (*custom_malloc)(size_t),
-                   void* (*custom_realloc)(void*, size_t),
-                   void  (*custom_free)(void*),
+typedef void* (*semver_malloc_fnc)(size_t);
+typedef void* (*semver_realloc_fnc)(void*,size_t);
+typedef void (*semver_free_fnc)(void*);
+
+void semver_config(semver_malloc_fnc custom_malloc,
+                   semver_realloc_fnc custom_realloc,
+                   semver_free_fnc custom_free,
                    FILE* debug_output);
 struct SemVer* semver_parse(const char* string);
 void semver_destroy(struct SemVer* version);
