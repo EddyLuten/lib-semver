@@ -7,7 +7,7 @@
 int main(int argc, const char* argv[])
 {
   int result;
-  struct SemVer* version;
+  SemVer* version;
   int test_truth;
 
   if (argc != 3)

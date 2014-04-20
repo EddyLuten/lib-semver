@@ -7,8 +7,8 @@
 int main(int argc, const char* argv[])
 {
   char comparator;
-  struct SemVer* v1;
-  struct SemVer* v2;
+  SemVer* v1;
+  SemVer* v2;
   int compare_result;
 
   if (4 != argc)

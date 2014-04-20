@@ -30,7 +30,7 @@ int main(void)
 {
   semver_config(my_malloc, my_realloc, my_free, stderr);
 
-  struct SemVer* semver = semver_parse("1.0.0-alpha+build.7621");
+  SemVer* semver = semver_parse("1.0.0-alpha+build.7621");
   assert(NULL != semver);
 
   char* version_string = semver_to_string(semver);

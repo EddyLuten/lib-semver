@@ -1,9 +1,7 @@
 // Copyright (c) 2014 Eddy Luten - https://github.com/EddyLuten/lib-semver
 // Distributed under MIT license.
 #include <stdlib.h>
-#include <stdbool.h>
 #include <string.h>
-#include <stdio.h>
 #include <stdarg.h>
 #include <assert.h>
 #include <semver.h>
@@ -78,6 +76,7 @@ uint64_t pre_release_set(const char* begin, const char* end, char*** result)
 
     // Allocate new memory for the new array element
     (*result) = semver_realloc((*result), ++result_size * sizeof(char*));
+
     assert(NULL != (*result));
     if (NULL == *result)
     {
@@ -136,7 +135,7 @@ bool validate_label(const char* label)
 
 // INTERNAL
 // Validates the contents of each pre_release element.
-bool pre_release_validate(struct SemVer* version)
+bool pre_release_validate(SemVer* version)
 {
   size_t i;
 
@@ -153,7 +152,7 @@ bool pre_release_validate(struct SemVer* version)
 
 // INTERNAL
 // Validates the build information.
-bool build_info_validate(struct SemVer* version)
+bool build_info_validate(SemVer* version)
 {
   // If no build info is available, skip.
   if (!version->build_info)
@@ -176,9 +175,10 @@ void semver_config(semver_malloc_fnc custom_malloc,
   semver_out = debug_out;
 }
 
-struct SemVer* semver_parse(const char* string)
+SemVer* semver_parse(const char* string)
 {
-  struct SemVer* version;
+  SemVer* version;
+  uint64_t major = 0, minor = 0, patch = 0;
   size_t build_info_length;
   char* pre_release_pos;
   char* build_info_pos;
@@ -198,27 +198,21 @@ struct SemVer* semver_parse(const char* string)
   if (NULL != build_info_pos && pre_release_pos > build_info_pos)
     pre_release_pos = NULL;
 
-  version = semver_malloc(sizeof(struct SemVer));
-  assert(NULL != version);
-  if (NULL == version)
-    return NULL;
-
-  version->pre_release = NULL;
-  version->pre_release_elements = 0;
-  version->build_info = NULL;
-
   // Scan for the version information that should always be present.
   if (sscanf(string,
              "%llu.%llu.%llu%c",
-             &version->major,
-             &version->minor,
-             &version->patch,
+             &major,
+             &minor,
+             &patch,
              &last_char) < 3)
   {
     print_debug("semver_parse: string format not allowed\n");
-    semver_destroy(version);
     return NULL;
   }
+
+  version = semver_create(major, minor, patch);
+  if (NULL == version)
+    return NULL;
 
   // Make sure that the character after the required components is one of the
   // allowed characters (-,+,\0).
@@ -232,14 +226,6 @@ struct SemVer* semver_parse(const char* string)
       semver_destroy(version);
       return NULL;
     }
-  }
-
-  // Ensure that at least one of the component has a a value greater than zero.
-  if (version->major + version->minor + version->patch < 1)
-  {
-    print_debug("semver_parse: all components set to zero\n");
-    semver_destroy(version);
-    return NULL;
   }
 
   // Scan for the pre-release information that _can_ be present.
@@ -283,7 +269,90 @@ struct SemVer* semver_parse(const char* string)
   return version;
 }
 
-void semver_destroy(struct SemVer* version)
+SemVer* semver_create(uint64_t major, uint64_t minor, uint64_t patch)
+{
+  SemVer* version;
+  if (0 == major + minor + patch)
+  {
+    print_debug("semver_create: all arguments were zero\n");
+    return NULL;
+  }
+
+  version = semver_malloc(sizeof(SemVer));
+  assert(NULL != version);
+  if (NULL == version)
+    return NULL;
+
+  version->major = major;
+  version->minor = minor;
+  version->patch = patch;
+  version->pre_release = NULL;
+  version->pre_release_elements = 0;
+  version->build_info = NULL;
+
+  return version;
+}
+
+bool semver_add_pre_release_component(SemVer** version,
+                                      const char* component)
+{
+  char** temp;
+  uint64_t elements;
+
+  assert(NULL != version);
+  assert(NULL != *version);
+  assert(NULL != component);
+  if (NULL == version || NULL == *version || NULL == component)
+  {
+    print_debug("semver_add_pre_release_component: bad argument(s)\n");
+    return false;
+  }
+
+  // Attempt to parse the provided string.
+  temp = semver_malloc(sizeof(char*));
+  elements = pre_release_set(component, NULL, &temp);
+  if (0 == elements)
+  {
+    print_debug("semver_add_pre_release_component: malformatted string\n");
+    return false;
+  }
+
+  // If the pre-release info was set, override it.
+  if (0 != (*version)->pre_release_elements)
+    pre_release_unset(&(*version)->pre_release,
+                      (*version)->pre_release_elements);
+
+  (*version)->pre_release = temp;
+  (*version)->pre_release_elements = elements;
+
+  return true;
+}
+
+bool semver_add_build_info_component(SemVer** version,
+                                    const char* restrict component)
+{
+  size_t length;
+
+  assert(NULL != version);
+  assert(NULL != *version);
+  assert(NULL != component);
+  if (NULL == version || NULL == *version ||
+      NULL == component || !validate_label(component))
+  {
+    print_debug("semver_add_build_info_component: bad argument(s)\n");
+    return false;
+  }
+
+  length = strlen(component);
+  (*version)->build_info = semver_realloc((*version)->build_info,
+                                          (length + 1) * sizeof(char));
+  strncpy((*version)->build_info, component, length);
+  (*version)->build_info[length] = '\0';
+
+  return true;
+}
+
+void semver_destroy(SemVer* version)
 {
   if (NULL == version)
     return;
@@ -297,7 +366,7 @@ void semver_destroy(struct SemVer* version)
   semver_free(version);
 }
 
-char* semver_to_string(struct SemVer* version)
+char* semver_to_string(SemVer* version)
 {
   uint64_t length = 0,
            i = 0,
@@ -375,6 +444,8 @@ char* semver_to_string(struct SemVer* version)
     return NULL;
   }
 
+  j = sprintf_result;
+
   // If we have pre-release info, write it, too.
   if (NULL != version->pre_release)
   {
@@ -401,17 +472,14 @@ char* semver_to_string(struct SemVer* version)
   return result;
 }
 
-int semver_compare(struct SemVer* a, struct SemVer* b)
+int semver_compare(SemVer* a, SemVer* b)
 {
   int compare,
       maj_cmp   = a->major - b->major,
       min_cmp   = a->minor - b->minor,
       patch_cmp = a->patch - b->patch;
   size_t i = 0,
-         elements =
-           a->pre_release_elements < b->pre_release_elements
-           ? a->pre_release_elements
-           : b->pre_release_elements;
+         elements = 0;
 
   // Compare all of the required components.
   compare =
@@ -419,7 +487,7 @@ int semver_compare(struct SemVer* a, struct SemVer* b)
     0 != min_cmp ? min_cmp :
     0 != patch_cmp ? patch_cmp : 0;
 
-  // If one of the versions has a pre-release component, we an determine which
+  // If one of the versions has a pre-release component, we can determine which
   // one is the greater.
   if (0 == compare)
   {
@@ -429,18 +497,31 @@ int semver_compare(struct SemVer* a, struct SemVer* b)
       return -1;
   }
 
-  // Both have elements, so iterate.
+  // Determine the max elements to use in the loop:
+  elements =
+    a->pre_release_elements < b->pre_release_elements
+    ? a->pre_release_elements
+    : b->pre_release_elements;
+
+  // Both have elements, so iterate until one runs out of elements.
   if (0 == compare && 0 != elements)
   {
-      do
-        compare = strcmp(a->pre_release[i], b->pre_release[i]);
-      while (0 == compare && i++ < elements);
+    do
+      compare = strcmp(a->pre_release[i], b->pre_release[i]);
+    while (0 == compare && ++i < elements);
+
+    // Make sure that if one version has more elements than the other, the extra
+    // components are taken into account as well.
+    if (0 == compare && a->pre_release_elements > b->pre_release_elements)
+      compare = 1; // if A has more elements than B at this point, A is greater.
+    else if (0 == compare && b->pre_release_elements > a->pre_release_elements)
+      compare = -1; // If B has more elements than A at this point, A is less.
   }
 
   return compare;
 }
 
-int semver_is_stable(struct SemVer* version)
+int semver_is_stable(SemVer* version)
 {
   return version->major > 0 && NULL == version->pre_release;
 }

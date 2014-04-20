@@ -6,10 +6,21 @@ The following file documents the API calls available in lib-semver.
 
 `LIB_SEMVER_VERSION` Contains the version of the lib-semver library.
 
-## Data Structures ##
+## Data Structures and Types ##
+
+```semver_malloc_fnc``` Function pointer typedef used by `semver_config`,
+evaluates to a function with the same signature as `malloc`.
+
+```semver_realloc_fnc``` Function pointer typedef used by `semver_config`,
+evaluates to a function with the same signature as `realloc`.
+
+```semver_free_fnc``` Function pointer typedef used by `semver_config`,
+evaluates to a function with the same signature as `free`.
+
+### SemVer ###
 
 ```C
-struct SemVer
+typedef struct _SemVer
 {
   uint64_t major;
   uint64_t minor;
@@ -17,10 +28,10 @@ struct SemVer
   uint64_t pre_release_elements;
   char** pre_release;
   char* build_info;
-};
+} SemVer;
 ```
 
-`struct SemVer` contains all of the components of a semantic version. Consider
+`SemVer` contains all of the components of a semantic version. Consider
 the struct as read-only and only modify it using the lib-semver API. Changes
 made to the `pre_release` and `build_info` members could prove catastrophic to
 memory deallocation.
@@ -68,7 +79,7 @@ used if either a custom allocator is required or while debugging.
 ### semver_parse ###
 
 ```C
-struct SemVer* semver_parse(const char* string);
+SemVer* semver_parse(const char* string);
 ```
 
 Parses a null-terminated character string and returns the contained semantic
@@ -76,10 +87,41 @@ version through a pointer to a `SemVer` struct. The function returns `NULL` on
 failure. The returned struct must be destroyed by providing it as the parameter
 to `semver_destroy`.
 
+### semver_create ###
+
+```C
+SemVer* semver_create(uint64_t major, uint64_t minor, uint64_t patch);
+```
+
+Creates an instance of a `SemVer` struct containing the required major, minor,
+and patch components provided as arguments. Returns `NULL` on failure.
+
+### semver_add_pre_release_component ###
+
+```C
+bool semver_add_pre_release_component(SemVer** version, const char* component);
+```
+
+Parses the null-terminated string provided in the `component` argument and
+populates the `pre_release` member of the `version` argument. If the
+`pre_release` member is already set in `version`, the function will deallocate
+and overwrite its contents. Returns `true` on success, `false` on failure.
+
+### semver_add_build_info_component ###
+
+```C
+bool semver_add_build_info_component(SemVer** version, const char* component);
+```
+
+Parses the null-terminated string provided in the `component` argument and
+populates the `build_info` member of the `version` argument. If the
+`build_info` member is already set in `version`, the function will deallocate
+and overwrite its contents. Returns `true` on success, `false` on failure.
+
 ### semver_destroy ###
 
 ```C
-void semver_destroy(struct SemVer* version);
+void semver_destroy(SemVer* version);
 ```
 Frees a `SemVer` structure allocated by lib-semver. The contents of the memor
 pointed to by the pointer are undefined after this function executes.
@@ -87,7 +129,7 @@ pointed to by the pointer are undefined after this function executes.
 ### semver_to_string ###
 
 ```C
-char* semver_to_string(struct SemVer* version);
+char* semver_to_string(SemVer* version);
 ```
 
 Converts a SemVer structure into its string representation, or `NULL` on
@@ -98,7 +140,7 @@ the C standard library's `stdlib.h` file if `semver_config()` was not called.
 ### semver_compare ###
 
 ```C
-int semver_compare(struct SemVer* a, struct SemVer* b);
+int semver_compare(SemVer* a, SemVer* b);
 ```
 
 Compares two version instances. Returns 0 if `a` and `b` are equal, a value
@@ -108,7 +150,7 @@ than `b`.
 ### semver_is_stable ###
 
 ```C
-int semver_is_stable(struct SemVer* version);
+int semver_is_stable(SemVer* version);
 ```
 
 Returns 1 if the version is stable, 0 if not, and -1 if an invalid argument was

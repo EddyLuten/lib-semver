@@ -1,4 +1,6 @@
 #!/bin/bash
+PREV = pwd
+cd "$( dirname "${BASH_SOURCE[0]}" )"
 set -e
 
 valgrind_run() {
@@ -32,11 +34,22 @@ cleanup() {
 		echo "OK"
 	fi
 	make clean > /dev/null
+	cd ${PREV}
 }
 
 run() {
 	echo "RUNNING TESTS"
+
+	# a few very simple tests
 	valgrind_run ./build/custom-allocators
+	valgrind_run ./build/create
+	valgrind_run ./build/create-meta
+
+	# test conversion from parsed string back to string
+	while read string
+	do
+		valgrind_run ./build/to-string $string
+	done < ./data/to-string.txt
 
 	# test simple parsing of version strings
 	# format of string "n version\n"
@@ -44,7 +57,7 @@ run() {
 	while read version
 	do
 		valgrind_run ./build/simple-parse $version
-	done < ./versions.txt
+	done < ./data/simple-parse.txt
 
 	# test the comparision functionality
 	# format of string "version op version"
@@ -52,7 +65,7 @@ run() {
 	while read comparison
 	do
 		valgrind_run ./build/compare $comparison
-	done < ./compare.txt
+	done < ./data/compare.txt
 }
 
 trap cleanup EXIT
